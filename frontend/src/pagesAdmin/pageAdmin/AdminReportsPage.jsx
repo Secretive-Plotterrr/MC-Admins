@@ -1,5 +1,5 @@
 // src/pagesAdmin/pageAdmin/AdminReports.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -65,32 +65,10 @@ const mockAdminReportData = {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const AdminReports = () => {
-  const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [reportData] = useState(mockAdminReportData);
   const [monthFilter, setMonthFilter] = useState('January');
   const [yearFilter, setYearFilter] = useState('2026');
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    // Simulate API fetch delay
-    setTimeout(() => {
-      setReportData(mockAdminReportData);
-      setLoading(false);
-    }, 1500);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading system reports...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!reportData) return null;
 
   // Filter activity / history
   const filterItems = (items) =>

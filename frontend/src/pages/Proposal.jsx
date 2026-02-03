@@ -17,6 +17,7 @@ function Proposal() {
         "A night of cultural performances featuring traditional Filipino dances, modern interpretations, singing contests, and fashion show showcasing regional attire.\n\nExpected participants: 500+ students and guests\nObjectives: Promote cultural awareness and unity among departments",
       status: "Pending",
       attachments: [],
+      comments: "",
     },
     {
       id: 102,
@@ -32,6 +33,7 @@ function Proposal() {
         "Half-day seminar with industry speakers discussing how artificial intelligence is transforming teaching and learning.\n\nTopics:\n• AI tools for personalized learning\n• Ethical use of AI in academic settings\n• Case studies from Philippine universities\nTarget audience: Faculty, students (IT, Education, all departments)",
       status: "Approved",
       attachments: ["agenda.pdf", "speaker-bios.jpg"],
+      comments: "",
     },
     {
       id: 103,
@@ -47,6 +49,7 @@ function Proposal() {
         "3-day inter-department basketball tournament (men's & women's divisions).\n\nFormat: Elimination rounds → Semifinals → Finals\nPrizes: Trophies + cash for champions and runners-up\nOpen to all departments and faculty/staff exhibition game",
       status: "Pending",
       attachments: ["tournament-rules.pdf"],
+      comments: "",
     },
     {
       id: 104,
@@ -62,6 +65,22 @@ function Proposal() {
         "Launch of the anthology 'Voices from Mabini' – collection of poems, short stories, and essays by students and alumni.\n\nProgram:\n• Reading performances\n• Author signing session\n• Open forum with contributors",
       status: "Approved",
       attachments: ["cover-design.jpg", "program-flow.pdf"],
+      comments: "",
+    },
+    {
+      id: 105,
+      title: "Poetry Slam Night",
+      organization: "Creative Writing Club",
+      submittedBy: "Carlo Mendoza",
+      submittedDate: "2026-01-15",
+      submittedTo: "Cultural Affairs Office",
+      eventDate: "2026-02-25",
+      eventTime: "7:00 PM - 9:00 PM",
+      location: "Student Lounge",
+      description: "Open mic poetry competition with cash prizes.",
+      status: "Declined",
+      attachments: ["flyer.jpg"],
+      comments: "Date conflicts with major university event. Please choose another date.",
     },
   ]);
 
@@ -69,6 +88,7 @@ function Proposal() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
+  const [editProposalId, setEditProposalId] = useState(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -78,7 +98,7 @@ function Proposal() {
     eventTime: '',
     location: '',
     submittedBy: '',
-    submittedTo: 'Student Affairs Office', // default – can be changed in form
+    submittedTo: 'Student Affairs Office',
   });
 
   const [attachments, setAttachments] = useState([]);
@@ -96,6 +116,7 @@ function Proposal() {
     .filter((p) => {
       if (activeTab === 'pending') return p.status === 'Pending';
       if (activeTab === 'approved') return p.status === 'Approved';
+      if (activeTab === 'declined') return p.status === 'Declined';
       return true;
     })
     .filter((p) =>
@@ -143,16 +164,38 @@ function Proposal() {
       return;
     }
 
-    const newProposal = {
-      id: Math.max(...proposals.map((p) => p.id), 0) + 1,
-      ...formData,
-      submittedDate: new Date().toISOString().split('T')[0],
-      status: 'Pending',
-      attachments: attachments.map((f) => f.name),
-    };
+    const newAttachments = attachments.map((f) => f.name);
 
-    setProposals((prev) => [...prev, newProposal]);
-    setSuccess('Proposal submitted successfully! It is now pending approval.');
+    if (editProposalId) {
+      // Resubmit / Edit mode
+      setProposals((prev) =>
+        prev.map((p) =>
+          p.id === editProposalId
+            ? {
+                ...p,
+                ...formData,
+                attachments: [...(p.attachments || []), ...newAttachments],
+                status: 'Pending',
+                comments: '', // clear previous decline reason
+                submittedDate: new Date().toISOString().split('T')[0], // update submit date
+              }
+            : p
+        )
+      );
+      setSuccess('Proposal updated and resubmitted successfully!');
+    } else {
+      // New proposal
+      const newProposal = {
+        id: Math.max(...proposals.map((p) => p.id), 0) + 1,
+        ...formData,
+        submittedDate: new Date().toISOString().split('T')[0],
+        status: 'Pending',
+        attachments: newAttachments,
+        comments: '',
+      };
+      setProposals((prev) => [...prev, newProposal]);
+      setSuccess('Proposal submitted successfully! It is now pending approval.');
+    }
 
     // Reset form
     setFormData({
@@ -168,6 +211,25 @@ function Proposal() {
     setAttachments([]);
     setImagePreviews([]);
     setShowForm(false);
+    setEditProposalId(null);
+  };
+
+  const openEditModal = (proposal) => {
+    setEditProposalId(proposal.id);
+    setFormData({
+      title: proposal.title,
+      organization: proposal.organization,
+      description: proposal.description,
+      eventDate: proposal.eventDate,
+      eventTime: proposal.eventTime || '',
+      location: proposal.location || '',
+      submittedBy: proposal.submittedBy,
+      submittedTo: proposal.submittedTo,
+    });
+    setAttachments([]); // New attachments only — old ones kept in record
+    setImagePreviews([]);
+    setShowForm(true);
+    setSelectedProposal(null);
   };
 
   const clearSearch = () => setSearchQuery('');
@@ -181,7 +243,10 @@ function Proposal() {
             Event Proposals
           </h1>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setEditProposalId(null);
+              setShowForm(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition shadow-sm whitespace-nowrap flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,12 +258,12 @@ function Proposal() {
 
         {/* Tabs + Search */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="border-b border-gray-200 dark:border-gray-700 flex space-x-6">
-            {['all', 'pending', 'approved'].map((tab) => (
+          <div className="border-b border-gray-200 dark:border-gray-700 flex space-x-6 overflow-x-auto">
+            {['all', 'pending', 'approved', 'declined'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab
                     ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
@@ -278,6 +343,8 @@ function Proposal() {
                           className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
                             prop.status === 'Approved'
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                              : prop.status === 'Declined'
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
                               : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
                           }`}
                         >
@@ -308,15 +375,20 @@ function Proposal() {
           </div>
         </div>
 
-        {/* New Proposal Modal */}
+        {/* New / Edit Proposal Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700 shadow-2xl">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create New Proposal</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {editProposalId ? 'Edit & Resubmit Proposal' : 'Create New Proposal'}
+                  </h2>
                   <button
-                    onClick={() => setShowForm(false)}
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditProposalId(null);
+                    }}
                     className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl leading-none"
                   >
                     ×
@@ -424,7 +496,7 @@ function Proposal() {
 
                   <div className="mt-6">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Attachments (optional)
+                      Attachments (optional – add new files)
                     </label>
                     <input
                       type="file"
@@ -471,7 +543,10 @@ function Proposal() {
                   <div className="mt-8 flex justify-end gap-3">
                     <button
                       type="button"
-                      onClick={() => setShowForm(false)}
+                      onClick={() => {
+                        setShowForm(false);
+                        setEditProposalId(null);
+                      }}
                       className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     >
                       Cancel
@@ -480,7 +555,7 @@ function Proposal() {
                       type="submit"
                       className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition"
                     >
-                      Submit Proposal
+                      {editProposalId ? 'Resubmit Proposal' : 'Submit Proposal'}
                     </button>
                   </div>
                 </form>
@@ -507,6 +582,8 @@ function Proposal() {
                   className={`px-3 py-1.5 text-sm font-medium rounded-full ${
                     selectedProposal.status === 'Approved'
                       ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                      : selectedProposal.status === 'Declined'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
                       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
                   }`}
                 >
@@ -572,9 +649,28 @@ function Proposal() {
                     </ul>
                   </div>
                 )}
+
+                {selectedProposal.status === 'Declined' && selectedProposal.comments && (
+                  <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                    <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">
+                      Decline Reason
+                    </h3>
+                    <p className="text-red-700 dark:text-red-300 whitespace-pre-line">
+                      {selectedProposal.comments}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="mt-8 flex justify-end">
+              <div className="mt-8 flex justify-end gap-3">
+                {selectedProposal.status === 'Declined' && (
+                  <button
+                    onClick={() => openEditModal(selectedProposal)}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
+                  >
+                    Edit & Resubmit
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedProposal(null)}
                   className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition font-medium"

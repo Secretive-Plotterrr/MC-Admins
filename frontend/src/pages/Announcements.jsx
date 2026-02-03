@@ -1,8 +1,8 @@
 // src/pages/Announcements.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function AnnouncementsPage({ isSuperAdmin = false }) {
-  // Mock data – newest announcements should come first in real app (or sort below)
+  // Mock data – newest announcements should come first
   const [announcements, setAnnouncements] = useState([
     {
       id: 1,
@@ -37,16 +37,20 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
   ]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);           // create modal
-  const [detailModal, setDetailModal] = useState(null);        // selected announcement for view
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailModal, setDetailModal] = useState(null);
+  const [confirmFBModal, setConfirmFBModal] = useState(null);
+  const [successModal, setSuccessModal] = useState(null);
 
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: '',
     content: '',
     departments: [],
     urgent: false,
-    postToFB: false,
   });
+
+  // Track if form is valid (title + content not empty)
+  const [isFormValid, setIsFormValid] = useState(false);
 
   const allDepartments = [
     "All Departments",
@@ -63,6 +67,14 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
   const sortedAnnouncements = [...announcements].sort((a, b) =>
     new Date(b.date) - new Date(a.date)
   );
+
+  // Update form validity whenever title or content changes
+  useEffect(() => {
+    const valid = 
+      newAnnouncement.title.trim().length > 0 &&
+      newAnnouncement.content.trim().length > 0;
+    setIsFormValid(valid);
+  }, [newAnnouncement.title, newAnnouncement.content]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -83,29 +95,57 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (!newAnnouncement.title.trim() || !newAnnouncement.content.trim()) return;
+    if (!isFormValid) return;
 
     const newAnn = {
       id: announcements.length + 1,
       ...newAnnouncement,
       postedBy: "Current User",
       date: new Date().toISOString().split('T')[0],
-      postedToFB: newAnnouncement.postToFB,
+      postedToFB: false,
     };
 
-    setAnnouncements(prev => [newAnn, ...prev]); // newest first
+    setAnnouncements(prev => [newAnn, ...prev]);
     setModalOpen(false);
     setNewAnnouncement({
       title: '',
       content: '',
       departments: [],
       urgent: false,
-      postToFB: false,
+    });
+    setIsFormValid(false);
+  };
+
+  const handlePostToFacebook = (ann) => {
+    setConfirmFBModal(ann);
+  };
+
+  const confirmPost = () => {
+    console.log('Posting to Facebook:', confirmFBModal);
+
+    setAnnouncements(prev =>
+      prev.map(a =>
+        a.id === confirmFBModal.id ? { ...a, postedToFB: true } : a
+      )
+    );
+
+    setConfirmFBModal(null);
+    setSuccessModal({
+      title: "Posted!",
+      message: "This announcement has been posted to Facebook.",
     });
 
-    if (newAnnouncement.postToFB) {
-      console.log('Would post to Facebook:', newAnn);
+    if (detailModal && detailModal.id === confirmFBModal.id) {
+      setDetailModal(prev => ({ ...prev, postedToFB: true }));
     }
+  };
+
+  const cancelPost = () => {
+    setConfirmFBModal(null);
+    setSuccessModal({
+      title: "Cancelled",
+      message: "No post was made to Facebook.",
+    });
   };
 
   // Filter after sorting
@@ -206,7 +246,6 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
               <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
                 <p>Posted by: {ann.postedBy} • {ann.date}</p>
                 <p>Departments: {ann.departments.join(', ')}</p>
-                <p>Posted to FB: {ann.postedToFB ? 'Yes' : 'No'}</p>
               </div>
             </div>
           ))
@@ -268,30 +307,32 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">Mark as Urgent</span>
                 </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="postToFB"
-                    checked={newAnnouncement.postToFB}
-                    onChange={handleInputChange}
-                    className="text-blue-500 focus:ring-blue-500 rounded"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Auto-Post to Facebook</span>
-                </label>
               </div>
+
+              {/* Buttons with dynamic colors */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition"
+                  className={`px-5 py-2.5 rounded-lg font-medium transition ${
+                    isFormValid
+                      ? 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md transition font-medium"
+                  disabled={!isFormValid}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition ${
+                    isFormValid
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                      : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  }`}
                 >
-                  Create & Post
+                  Create Announcement
                 </button>
               </div>
             </form>
@@ -299,7 +340,7 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
         </div>
       )}
 
-      {/* DETAIL Modal – shown when clicking any announcement */}
+      {/* DETAIL Modal */}
       {detailModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
@@ -330,15 +371,76 @@ function AnnouncementsPage({ isSuperAdmin = false }) {
               <p><strong>Posted by:</strong> {detailModal.postedBy}</p>
               <p><strong>Date:</strong> {detailModal.date}</p>
               <p><strong>Target Departments:</strong> {detailModal.departments.join(', ')}</p>
-              <p><strong>Posted to Facebook:</strong> {detailModal.postedToFB ? 'Yes' : 'No'}</p>
             </div>
 
-            <div className="mt-8 flex justify-end">
+            <div className="mt-8 flex justify-end gap-3">
+              {!detailModal.postedToFB && (
+                <button
+                  onClick={() => handlePostToFacebook(detailModal)}
+                  className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium"
+                >
+                  Post to Facebook
+                </button>
+              )}
               <button
                 onClick={() => setDetailModal(null)}
                 className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition font-medium"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Facebook Post Modal */}
+      {confirmFBModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Post to Facebook?
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Do you want to share this announcement:
+              <br />
+              <strong>"{confirmFBModal.title}"</strong>
+              <br />
+              on the official Facebook page?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelPost}
+                className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition"
+              >
+                No, Cancel
+              </button>
+              <button
+                onClick={confirmPost}
+                className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium"
+              >
+                Yes, Post Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success / Info Modal */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {successModal.title}
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              {successModal.message}
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setSuccessModal(null)}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
+              >
+                OK
               </button>
             </div>
           </div>
